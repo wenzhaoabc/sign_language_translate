@@ -10,6 +10,8 @@ from math import floor
 import cv2
 from flask_socketio import SocketIO, emit
 
+from network.hand_detect import img_with_hand
+
 sys.path.append('D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\')
 sys.path.append('/workspace/python/sign')
 
@@ -624,6 +626,7 @@ def handle_upload_video_stream(data):
     print(data[0], data[1], data[3], data[len(data) - 1], data[len(data) - 2])
     img = Image.open(io.BytesIO(data[5:]))
     img.show()
+    print(img.shape)
 
     """"
     第一版V1
@@ -651,6 +654,10 @@ def handle_upload_video_stream(data):
     # print(dst)
     # yuv420_nv21_2_rgb(Y, VU, width, y_length // width)
     pass
+
+
+def send_translated_texy(text):
+    socket.emit("trans_result", text)
 
 
 # import simple_websocket
@@ -765,6 +772,29 @@ def yuv420_nv21_2_rgb(Y: [], VU: [], width: int, height: int):
 
 if __name__ == '__main__':
     # yuv_test()
-    print("start")
-    socket.run(app, host='0.0.0.0', debug=True, port=5002)
+    # print("start")
+    # socket.run(app, host='0.0.0.0', debug=True, port=5002)
     # app.run(debug=True, host='0.0.0.0', port=5002)
+    img = Image.open("pexels-photo-768932.jpeg")
+    res = img_with_hand(img)
+    """
+    
+    q1
+    
+    手机图片
+    |
+    q1
+    |
+    img_with_hand
+    if true -> q2
+    |
+    连续多张为false
+    |
+    取出q2 -> 网络模型 -result->send_translated_texy()
+    
+    
+    """
+
+    # q2
+    print(res)
+
