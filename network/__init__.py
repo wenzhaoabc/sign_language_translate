@@ -87,6 +87,8 @@ class ModelWrapper:
         self.lock = threading.Lock()  # 线程锁
         self.queue2_lock = False  # false代表可以往queue2中写数据，true代表不可以，只能读数据
 
+        self.queue_images=Queue()
+
     # SLR model
     def get_key(self, val):
         for key, value in self.dict.items():
@@ -116,6 +118,55 @@ class ModelWrapper:
         except Exception as e:
             raise
 
+    
+    def predict_(self):
+        # get the inputs and labels
+        if self.queue_images.empty():
+            print("No entered!")
+            return None
+
+        print("Entered")
+        images = []
+        while not self.queue_images.empty():
+            image =self.queue_images.get()  # 从队列中取出元素并弹出
+            # print(type(image))
+            # print(image.shape)
+            # image = np.asarray(image)  # np array
+            if self.transform is not None:
+                image = self.transform(image)  # tensor
+            images.append(image)
+
+        # 沿着一个新维度对输入张量序列进行连接，序列中所有的张量都应该为相同形状
+        images = torch.stack(images, dim=0)
+        # 原本是帧，通道，h，w，需要换成可供3D CNN使用的形状
+        images = images.permute(1, 0, 2, 3)
+
+        print(images.shape)
+
+        inputs = (images.unsqueeze(0)).to(self.device)
+        mmm = torch.LongTensor([1, 247, 506, 215, 110, 294, 2, 1, 247, 506, 215, 110, 294, 2, 0, 0, 0, 0])
+        labels = mmm.unsqueeze(0).to(self.device)
+        outputs = self.model(inputs, labels, 0)
+        # print(outputs.shape)
+        output_dim = outputs.shape[-1]
+        outputs = outputs[1:].view(-1, output_dim)
+        # print(outputs.shape)
+        # print(outputs)
+        prediction = torch.max(outputs, 1)[1]
+        # print(prediction)
+        prediction = prediction.view(-1, 1).permute(1,0).tolist()  # prediction.view(-1, batch_size).permute(1,0).tolist()
+        for i in range(0, len(prediction)):
+            res = ''
+            for p2 in prediction[i]:
+                key = self.get_key(p2)
+                if key == '<eos>':
+                    break
+                res = res + key
+
+            print("prediction:", res)
+        return res  # 手语翻译结果
+
+    
     def predict(self):
         # get the inputs and labels
         if self.image_buffer2.empty():
@@ -222,6 +273,26 @@ class ModelWrapper:
             # print("No enough")
             # return None
 
+    # lkj add
+    async def has_hand(self,image):
+        res=img_with_hand(image)
+        return res
+
+
+    async def add_image(self,img):
+        res=self.has_hand(img)
+        await res
+
+        if res:
+            self.continuous_not_hand_num=0
+            self.queue_images.put(img)
+        else:
+            self.continuous_not_hand_num+=1
+            self.queue_images.put(img)
+            if(self.continuous_not_hand_num>=self.MAX_NOT_HAND_NUM):
+                res=self.predict()
+                send_translated_texy(res)
+
 
 if __name__ == '__main__':
     mymodel = ModelWrapper("models/params/slr_seq2seq_epoch107.pth",
@@ -256,15 +327,3 @@ if __name__ == '__main__':
             break
     # t2.join()
 
-"""
-一个函数
-异步函数
-
-无手NUM = 0
-def add_img(img:PIL.Image):
-    异步 async  (img -> yolo:)
-    await result
-     result ->:
-        true -> 加入list 无手NUM=0
-        false -> 无手NUM += 1 ； 无手NUM > 某个值 -》 list -> MODEL -> res (call send_translated_texy(res))
-"""
