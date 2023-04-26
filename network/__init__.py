@@ -214,7 +214,7 @@ class ModelWrapper:
                 res = self.predict()
                 print(res)
                 send_translated_texy(res)
-                ?? // 关闭线程
+                # ?? // 关闭线程
 
                 # return res
                 # print(res)
