@@ -4,8 +4,8 @@
 """
 import io
 import sys
-from io import BytesIO
-from math import floor
+# from io import BytesIO
+# from math import floor
 
 import cv2
 from flask_socketio import SocketIO, emit
@@ -555,41 +555,6 @@ def cancel_word_love():
 
 socket = SocketIO()
 socket.init_app(app, cors_allowed_origins='*')
-
-
-# image_width = 320
-# image_height = 240
-
-
-# def np_yuv2rgb(Y, U, V, width, height):
-#     bgr_data = np.zeros((width, height, 3), dtype=np.uint8)
-#     V = np.repeat(V, 2, 0)
-#     V = np.repeat(V, 2, 1)
-#     U = np.repeat(U, 2, 0)
-#     U = np.repeat(U, 2, 1)
-#
-#     c = (Y - np.array([16])) * 298
-#     d = U - np.array([128])
-#     e = V - np.array([128])
-#
-#     r = (c + 409 * e + 128) // 256
-#     g = (c - 100 * d - 208 * e + 128) // 256
-#     b = (c + 516 * d + 128) // 256
-#
-#     r = np.where(r < 0, 0, r)
-#     r = np.where(r > 255, 255, r)
-#
-#     g = np.where(g < 0, 0, g)
-#     g = np.where(g > 255, 255, g)
-#
-#     b = np.where(b < 0, 0, b)
-#     b = np.where(b > 255, 255, b)
-#
-#     bgr_data[:, :, 2] = r
-#     bgr_data[:, :, 1] = g
-#     bgr_data[:, :, 0] = b
-#
-#     return bgr_data
 
 
 @socket.on("connect")
