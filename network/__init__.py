@@ -87,7 +87,7 @@ class ModelWrapper:
         self.lock = threading.Lock()  # 线程锁
         self.queue2_lock = False  # false代表可以往queue2中写数据，true代表不可以，只能读数据
 
-        self.queue_images=Queue()
+        self.queue_images = Queue()
 
     # SLR model
     def get_key(self, val):
@@ -118,7 +118,6 @@ class ModelWrapper:
         except Exception as e:
             raise
 
-    
     def predict_(self):
         # get the inputs and labels
         if self.queue_images.empty():
@@ -128,7 +127,7 @@ class ModelWrapper:
         print("Entered")
         images = []
         while not self.queue_images.empty():
-            image =self.queue_images.get()  # 从队列中取出元素并弹出
+            image = self.queue_images.get()  # 从队列中取出元素并弹出
             # print(type(image))
             # print(image.shape)
             # image = np.asarray(image)  # np array
@@ -154,7 +153,8 @@ class ModelWrapper:
         # print(outputs)
         prediction = torch.max(outputs, 1)[1]
         # print(prediction)
-        prediction = prediction.view(-1, 1).permute(1,0).tolist()  # prediction.view(-1, batch_size).permute(1,0).tolist()
+        prediction = prediction.view(-1, 1).permute(1,
+                                                    0).tolist()  # prediction.view(-1, batch_size).permute(1,0).tolist()
         for i in range(0, len(prediction)):
             res = ''
             for p2 in prediction[i]:
@@ -166,7 +166,6 @@ class ModelWrapper:
             print("prediction:", res)
         return res  # 手语翻译结果
 
-    
     def predict(self):
         # get the inputs and labels
         if self.image_buffer2.empty():
@@ -253,77 +252,20 @@ class ModelWrapper:
 
         return False
 
-    def get_and_predict(self):
-        while True:
-            # sleep(50)
-            flag = self.add_image_toQueue2()
-            # print(self.continuous_not_hand_num)
-            if flag and not self.queue2_lock:  # 可以进行预测的标志
-                print("enough")
-                print(self.image_buffer2.qsize())
-                # print(self.image_buffer2.empty())
-                res = self.predict()
-                print(res)
-                send_translated_texy(res)
-                # ?? // 关闭线程
-
-                # return res
-                # print(res)
-            # else:
-            # print("No enough")
-            # return None
-
     # lkj add
-    async def has_hand(self,image):
-        res=img_with_hand(image)
+    async def has_hand(self, image):
+        res = img_with_hand(image)
         return res
 
-
-    async def add_image(self,img):
-        res=self.has_hand(img)
+    async def add_image(self, img):
+        res = self.has_hand(img)
         await res
-
         if res:
-            self.continuous_not_hand_num=0
+            self.continuous_not_hand_num = 0
             self.queue_images.put(img)
         else:
-            self.continuous_not_hand_num+=1
+            self.continuous_not_hand_num += 1
             self.queue_images.put(img)
-            if(self.continuous_not_hand_num>=self.MAX_NOT_HAND_NUM):
-                res=self.predict()
+            if self.continuous_not_hand_num >= self.MAX_NOT_HAND_NUM:
+                res = self.predict()
                 send_translated_texy(res)
-
-
-if __name__ == '__main__':
-    mymodel = ModelWrapper("models/params/slr_seq2seq_epoch107.pth",
-                           "models/params/dictionary.txt")
-
-    img1 = Image.open("models/test_imgs/OIP-C.jpeg")
-    img2 = Image.open("models/test_imgs/test2.jpeg")
-    res = img_with_hand(img1)
-    print(res)
-    res = img_with_hand(img2)
-    print(res)
-    # 开启 2 个线程，分别执行 func1 和 func2 函数
-
-    t2 = threading.Thread(target=mymodel.get_and_predict)
-    t2.start()
-    num = 0
-    while True:
-        if num < 20:
-            t1 = threading.Thread(target=mymodel.add_image_toQueue1, args=(img1,))
-            t1.start()
-        elif num < 30:
-            t1 = threading.Thread(target=mymodel.add_image_toQueue1, args=(img2,))
-            t1.start()
-        elif num < 40:
-            t1 = threading.Thread(target=mymodel.add_image_toQueue1, args=(img1,))
-            t1.start()
-        else:
-            t1 = threading.Thread(target=mymodel.add_image_toQueue1, args=(img2,))
-            t1.start()
-        num += 1
-        if num >= 50:
-            break
-    # t2.join()
-
