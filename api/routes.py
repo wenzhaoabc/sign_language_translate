@@ -555,6 +555,9 @@ def cancel_word_love():
 
 socket = SocketIO()
 socket.init_app(app, cors_allowed_origins='*')
+from network import ModelWrapper
+
+trans_model = ModelWrapper()
 
 
 @socket.on("connect")
@@ -590,8 +593,10 @@ def handle_upload_video_stream(data):
     """
     print(data[0], data[1], data[3], data[len(data) - 1], data[len(data) - 2])
     img = Image.open(io.BytesIO(data[5:]))
-    img.show()
-    print(img.shape)
+    trans_model.add_image_toQueue1(img)
+
+    # img.show()
+    # print(img.shape)
 
     """"
     第一版V1
@@ -762,4 +767,3 @@ if __name__ == '__main__':
 
     # q2
     print(res)
-
