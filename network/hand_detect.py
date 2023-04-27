@@ -13,8 +13,9 @@ class YOLO:
         self.output_names = []
         self.labels = ['hand']
         try:
-            self.net = cv2.dnn.readNetFromDarknet('cross-hands-yolov4-tiny.cfg',
-                                                  'cross-hands-yolov4-tiny.weights')
+            self.net = cv2.dnn.readNetFromDarknet(
+                'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.cfg',
+                'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.weights')
         except:
             raise ValueError("Couldn't find the models!\nDid you forget to download them manually (and keep in the "
                              "correct directory, models/) or run the shell script?")
@@ -83,6 +84,8 @@ class YOLO:
 
         return iw, ih, inference_time, results
 
+
+yolo_model = YOLO()
 
 # yolo_model = YOLO()
 #

@@ -2,23 +2,19 @@
 """
 网络请求API
 """
+import asyncio
 import io
 import sys
-# from io import BytesIO
-# from math import floor
-
-import cv2
 from flask_socketio import SocketIO, emit
-
-from network.hand_detect import img_with_hand
+from PIL import Image
+import json
+import pymysql.cursors
+from flask import request, session
 
 sys.path.append('D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\')
 sys.path.append('/workspace/python/sign')
 
-import json
-import pymysql.cursors
-from flask import request, session
-import numpy as np
+from network import trans_model
 from api import create_app
 from dbconn import get_db
 from utils import allow_cors, ResponseCode, verify_phone, upload_image, DatetimeEncoder, response_json, upload_file
@@ -555,9 +551,6 @@ def cancel_word_love():
 
 socket = SocketIO()
 socket.init_app(app, cors_allowed_origins='*')
-from network import ModelWrapper
-
-trans_model = ModelWrapper()
 
 
 @socket.on("connect")
@@ -578,10 +571,8 @@ def handle_video_stream(message):
 
 @socket.on("video")
 def handle_upload_video_stream(data):
-    print(len(data))
-    print(type(data))
-    # # temp = bytearray(data)
-    # temp = data
+    # print(len(data))
+    # print(type(data))
     """V3 - YUV420 """
     # y_length = temp[0] * 255 * 255 + temp[1] * 255 + temp[2]
     # width = temp[3] * 255 + temp[4]
@@ -591,179 +582,16 @@ def handle_upload_video_stream(data):
     jpeg格式
     需要舍弃前5个字节
     """
-    print(data[0], data[1], data[3], data[len(data) - 1], data[len(data) - 2])
+    # print(data[0], data[1], data[3], data[len(data) - 1], data[len(data) - 2])
     img = Image.open(io.BytesIO(data[5:]))
-    trans_model.add_image_toQueue1(img)
-
-    # img.show()
-    # print(img.shape)
-
-    """"
-    第一版V1
-    quarter_length = floor((len(temp) - 5 - half_length) // 2)
-    quarter_length = half_length // 2
-    print("quarter_length = ", quarter_length)
-    print(len(temp))
-    U = temp[5 + half_length:5 + half_length + quarter_length]
-    V = temp[-quarter_length:]
-    """
-
-    """
-    第二版V2
-    """
-    # VU = temp[5 + y_length:]
-    # print(0 + Y[0], 0 + Y[-1], 0 + U[0], 0 + U[-1], 0 + V[0], 0 + V[-1])
-    # img = np_yuv2rgb(Y, U, V, width, half_length // width)
-    # cv2.imshow("土拍你", img)
-    # src = None
-    # dst = None
-    # src = cv2.Mat(np.array(temp[5:]))
-
-    # src = np.array([Y, U, V])
-    # cv2.cvtColor(src=src, dst=dst, code=cv2.COLOR_YUV420SP2RGB)
-    # print(dst)
-    # yuv420_nv21_2_rgb(Y, VU, width, y_length // width)
-    pass
+    # trans_model.add_image_toQueue1(img)
+    asyncio.run(trans_model.add_image(img))
 
 
-def send_translated_texy(text):
-    socket.emit("trans_result", text)
-
-
-# import simple_websocket
-# import numpy as np
-# import cv2
-
-# def convert_images(images):
-#     return [cv2.cvtColor(np.array(image), cv2.COLOR_GRAY2BGR) for image in images]
-#
-#
-# video_name = "output.mp4"
-# fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-# fps = 30
-# frame_size = (len(images[0][0]), len(images[0]))
-# out = cv2.VideoWriter(video_name, fourcc, fps, frame_size)
-# # 创建VideoWriter对象
-# out = cv2.VideoWriter(video_name, fourcc, fps, frame_size)
-
-
-# @app.route('/video', websocket=True)
-# def socket_test():
-#     ws = simple_websocket.Server(request.environ)
-#     video_stream = []
-#     try:
-#         while True:
-#             data = ws.receive()
-#             data = bytearray(data)
-#             # width = data[0] * 20
-#             # height = data[1] * 20
-#             # print(width, height)
-#             pixels = np.reshape(data, (320, 240))
-#             video_stream.append(pixels)
-#             # 灰度矩阵转为图片
-#             # img = Image.fromarray(pixels)
-#             # video_stream.append(img)
-#             # print(video_stream)
-#             if len(video_stream) > 200:
-#                 video = cv2.VideoWriter("output.mp4", -1, 20, (320, 240))
-#                 # video.write()
-#                 for img in video_stream:
-#                     video.write(img)
-#                 video.release()
-#                 break
-#             print("END")
-#     except simple_websocket.ConnectionClosed:
-#         # Image.open(pixels)
-#
-#         pass
-#     return ''
-
-def yuv_test():
-    src = cv2.imread("./image.png")
-
-    dst = None
-    # print(src[0], src[1], src[2], src.shape)
-    print(src[:, :, 0])
-    print(src[:, :, 1])
-    print(src[:, :, 2])
-    dst = cv2.cvtColor(src=src, code=cv2.COLOR_YUV2BGR_NV21)
-    print(dst[:, :, 0])
-    print(dst[:, :, 1])
-    print(dst[:, :, 2])
-    np.repeat()
-
-    # src_src = cv2.cvtColor(src=dst, code=cv2.COLOR_YUV2RGB)
-    # print(src_src, src_src.shape)
-
-
-from PIL import Image
-
-img_list = []
-
-
-def yuv420_nv21_2_rgb(Y: [], VU: [], width: int, height: int):
-    """
-    YUV420格式
-    """
-    # y = np.frombuffer(Y, dtype=np.uint8).reshape((height, width))
-    # vu = np.frombuffer(VU, dtype=np.uint8).reshape((height // 2, width // 2, 2))
-    #
-    # rgb = np.zeros((height, width, 3), dtype=np.uint8)
-    # cv2.cvtColor(cv2.merge([y, vu]), cv2.COLOR_YUV2BGR_NV21, rgb)
-    # cv2_img = Image.fromarray(rgb, 'rgb')
-    # cv2_img.show()
-
-    # img_data = np.concatenate([y, vu], axis=0)
-    # dst = cv2.cvtColor(img_data, cv2.COLOR_YUV2BGR_NV21)
-    # print("dst = ", img_data)
-    # cv2.imshow('rgb img', rgb)
-    # source_data = np.empty((width, int(height * 1.5)), dtype=np.uint8)
-    # print(Y, '\n', VU)
-    # Y = np.array(Y, dtype=bytes)
-    # print(Y.shape)
-    # Y.reshape((width, height))
-    # VU = np.array(VU, dtype=bytes)
-    # VU.reshape((width, -1))
-    # source_data = np.concatenate([Y, VU], axis=0)
-    # dst = cv2.cvtColor(source_data, cv2.COLOR_YUV2BGR_NV21)
-    # print("dst = ", dst, dst.shape)
-    # img = Image.fromarray(dst)
-    # img.show()
-    """
-    直接灰度图
-    """
-    img = Image.frombytes(mode='L', size=(width, height), data=Y)
-    # 图片旋转
-    # img = img.rotate(90)
-    # img.show()
-    img_list.append(img)
-    # return source_data
+def send_translated_text(text):
+    print("_________trans____________res +++++++++++++ = : {}".format(text))
+    socket.emit("trans", text)
 
 
 if __name__ == '__main__':
-    # yuv_test()
-    # print("start")
-    # socket.run(app, host='0.0.0.0', debug=True, port=5002)
-    # app.run(debug=True, host='0.0.0.0', port=5002)
-    img = Image.open("pexels-photo-768932.jpeg")
-    res = img_with_hand(img)
-    """
-    
-    q1
-    
-    手机图片
-    |
-    q1
-    |
-    img_with_hand
-    if true -> q2
-    |
-    连续多张为false
-    |
-    取出q2 -> 网络模型 -result->send_translated_texy()
-    
-    
-    """
-
-    # q2
-    print(res)
+    socket.run(app, host='0.0.0.0', debug=True, port=5002)
