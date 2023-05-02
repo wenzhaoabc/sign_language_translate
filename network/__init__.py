@@ -45,6 +45,8 @@ class ModelWrapper:
                  labels_path="D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\models\\params\\dictionary.txt",
                  frames=64, transform=None):
         # -------------------------------------------------#
+        model_path = '/workspace/python/sign2/network/models/params/slr_seq2seq_epoch107.pth'
+        labels_path = '/workspace/python/sign2/network/models/params/dictionary.txt'
         # SLR model
         self.model_path = model_path  # './MyModel/seq2seq_models/slr_seq2seq_epoch001.pth'
         self.labels_path = labels_path  # './dictionary.txt'
@@ -76,7 +78,7 @@ class ModelWrapper:
         self.model.eval()
 
         self.continuous_not_hand_num = 0  # 连续没有手的数量
-        self.MAX_NOT_HAND_NUM = 15  # 连续没有手的图像数——判断何时结束
+        self.MAX_NOT_HAND_NUM = 10  # 连续没有手的图像数——判断何时结束
 
         # -------------------------------------------------#
         # image buffer
@@ -166,112 +168,115 @@ class ModelWrapper:
             print("prediction:", res)
         return res  # 手语翻译结果
 
-    #
-    # def predict(self):
-    #     # get the inputs and labels
-    #     if self.image_buffer2.empty():
-    #         print("No entered!")
-    #         return None
-    #
-    #     print("Entered")
-    #     images = []
-    #     while not self.image_buffer2.empty():
-    #         image = self.image_buffer2.get()  # 从队列中取出元素并弹出
-    #         # print(type(image))
-    #         # print(image.shape)
-    #         # image = np.asarray(image)  # np array
-    #         if self.transform is not None:
-    #             image = self.transform(image)  # tensor
-    #         images.append(image)
-    #
-    #     # 沿着一个新维度对输入张量序列进行连接，序列中所有的张量都应该为相同形状
-    #     images = torch.stack(images, dim=0)
-    #     # 原本是帧，通道，h，w，需要换成可供3D CNN使用的形状
-    #     images = images.permute(1, 0, 2, 3)
-    #
-    #     print(images.shape)
-    #
-    #     inputs = (images.unsqueeze(0)).to(self.device)
-    #     mmm = torch.LongTensor([1, 247, 506, 215, 110, 294, 2, 1, 247, 506, 215, 110, 294, 2, 0, 0, 0, 0])
-    #     labels = mmm.unsqueeze(0).to(self.device)
-    #     outputs = self.model(inputs, labels, 0)
-    #     # print(outputs.shape)
-    #     output_dim = outputs.shape[-1]
-    #     outputs = outputs[1:].view(-1, output_dim)
-    #     # print(outputs.shape)
-    #     # print(outputs)
-    #     prediction = torch.max(outputs, 1)[1]
-    #     # print(prediction)
-    #     prediction = prediction.view(-1, 1).permute(1,
-    #                                                 0).tolist()  # prediction.view(-1, batch_size).permute(1,0).tolist()
-    #     for i in range(0, len(prediction)):
-    #         res = ''
-    #         for p2 in prediction[i]:
-    #             key = self.get_key(p2)
-    #             if key == '<eos>':
-    #                 break
-    #             res = res + key
-    #
-    #         print("prediction:", res)
-    #     return res  # 手语翻译结果
-    #
-    # # image buffer——get image from 前端
-    # def add_image_toQueue1(self, image):  # 从前端无条件读取数据并保留
-    #     # self.lock.acquire()
-    #
-    #     if isinstance(image, Image.Image):
-    #         self.image_buffer1.put(image)
-    #         # print("Image added to queue 1 !")
-    #         print("Len:", self.image_buffer1.qsize())
-    #     else:
-    #         print("Error: For queue 1 Input is not an image object.")
-    #
-    #     # self.lock.release()
-    #
-    # def add_image_toQueue2(self):  # 从yolo模型读取flag,flag决定是否将buffer1的数据读到buffer2, 都要弹出buffer1
-    #     if self.queue2_lock:
-    #         return False
-    #     if self.image_buffer1.qsize() < 2:  # 当前img个数大等于2才读，防止同时读写一个img
-    #         # print("WARNING: Queue1 Image is not enough !")
-    #         return False
-    #     # self.lock.acquire()
-    #
-    #     image = self.image_buffer1.get()  # 从队列中取出元素并弹出
-    #
-    #     # self.lock.release()
-    #
-    #     hand_flag = img_with_hand(image)
-    #     if hand_flag:
-    #         self.continuous_not_hand_num = 0
-    #         self.image_buffer2.put(image)
-    #     else:
-    #         if self.continuous_not_hand_num >= self.MAX_NOT_HAND_NUM:  # 取出queue2的所有元素返回，用于判断
-    #             return True  # 返回True表示可以取走Queue2的所有元素
-    #         else:
-    #             self.continuous_not_hand_num += 1
-    #             self.image_buffer2.put(image)
-    #
-    #     return False
+        #
+        # def predict(self):
+        #     # get the inputs and labels
+        #     if self.image_buffer2.empty():
+        #         print("No entered!")
+        #         return None
+        #
+        #     print("Entered")
+        #     images = []
+        #     while not self.image_buffer2.empty():
+        #         image = self.image_buffer2.get()  # 从队列中取出元素并弹出
+        #         # print(type(image))
+        #         # print(image.shape)
+        #         # image = np.asarray(image)  # np array
+        #         if self.transform is not None:
+        #             image = self.transform(image)  # tensor
+        #         images.append(image)
+        #
+        #     # 沿着一个新维度对输入张量序列进行连接，序列中所有的张量都应该为相同形状
+        #     images = torch.stack(images, dim=0)
+        #     # 原本是帧，通道，h，w，需要换成可供3D CNN使用的形状
+        #     images = images.permute(1, 0, 2, 3)
+        #
+        #     print(images.shape)
+        #
+        #     inputs = (images.unsqueeze(0)).to(self.device)
+        #     mmm = torch.LongTensor([1, 247, 506, 215, 110, 294, 2, 1, 247, 506, 215, 110, 294, 2, 0, 0, 0, 0])
+        #     labels = mmm.unsqueeze(0).to(self.device)
+        #     outputs = self.model(inputs, labels, 0)
+        #     # print(outputs.shape)
+        #     output_dim = outputs.shape[-1]
+        #     outputs = outputs[1:].view(-1, output_dim)
+        #     # print(outputs.shape)
+        #     # print(outputs)
+        #     prediction = torch.max(outputs, 1)[1]
+        #     # print(prediction)
+        #     prediction = prediction.view(-1, 1).permute(1,
+        #                                                 0).tolist()  # prediction.view(-1, batch_size).permute(1,0).tolist()
+        #     for i in range(0, len(prediction)):
+        #         res = ''
+        #         for p2 in prediction[i]:
+        #             key = self.get_key(p2)
+        #             if key == '<eos>':
+        #                 break
+        #             res = res + key
+        #
+        #         print("prediction:", res)
+        #     return res  # 手语翻译结果
+        #
+        # # image buffer——get image from 前端
+        # def add_image_toQueue1(self, image):  # 从前端无条件读取数据并保留
+        #     # self.lock.acquire()
+        #
+        #     if isinstance(image, Image.Image):
+        #         self.image_buffer1.put(image)
+        #         # print("Image added to queue 1 !")
+        #         print("Len:", self.image_buffer1.qsize())
+        #     else:
+        #         print("Error: For queue 1 Input is not an image object.")
+        #
+        #     # self.lock.release()
+        #
+        # def add_image_toQueue2(self):  # 从yolo模型读取flag,flag决定是否将buffer1的数据读到buffer2, 都要弹出buffer1
+        #     if self.queue2_lock:
+        #         return False
+        #     if self.image_buffer1.qsize() < 2:  # 当前img个数大等于2才读，防止同时读写一个img
+        #         # print("WARNING: Queue1 Image is not enough !")
+        #         return False
+        #     # self.lock.acquire()
+        #
+        #     image = self.image_buffer1.get()  # 从队列中取出元素并弹出
+        #
+        #     # self.lock.release()
+        #
+        #     hand_flag = img_with_hand(image)
+        #     if hand_flag:
+        #         self.continuous_not_hand_num = 0
+        #         self.image_buffer2.put(image)
+        #     else:
+        #         if self.continuous_not_hand_num >= self.MAX_NOT_HAND_NUM:  # 取出queue2的所有元素返回，用于判断
+        #             return True  # 返回True表示可以取走Queue2的所有元素
+        #         else:
+        #             self.continuous_not_hand_num += 1
+        #             self.image_buffer2.put(image)
+        #
+        #     return False
 
-    # lkj add
-    async def has_hand(self, image):
-        res = img_with_hand(image)
-        # print("[hand detect] \t res = {}".format(res))
-        return res
+        # lkj add
+        # async def has_hand(self, image):
+        #     res = img_with_hand(image)
+        #     # print("[hand detect] \t res = {}".format(res))
+        #     return res
 
-    async def add_image(self, img):
-        res = await self.has_hand(img)
+    def add_image(self, img, res):
+        # res = await self.has_hand(img)
         if res:
             self.continuous_not_hand_num = 0
             self.queue_images.append(img)
         else:
             self.continuous_not_hand_num += 1
             if len(self.queue_images) > 16 and self.continuous_not_hand_num >= self.MAX_NOT_HAND_NUM:
-                res = self.predict_()
-                from api.routes import send_translated_text
-                if res is not None:
-                    print("myres:", res)
-                    send_translated_text(res)
+                threading.Thread(target=self.send_predict_text_to_redis, args=(), ).start()
+        # return res
+
+    def send_predict_text_to_redis(self):
+        res = self.predict_()
+        from api.routes import send_translated_text
+        if res is not None:
+            send_translated_text(res)
 
 
 trans_model = ModelWrapper()

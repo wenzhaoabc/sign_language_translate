@@ -3,18 +3,23 @@
 网络请求API
 """
 import asyncio
+import base64
 import io
 import sys
+
+import redis
 from flask_socketio import SocketIO, emit
 from PIL import Image
 import json
 import pymysql.cursors
 from flask import request, session
 
-sys.path.append('D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\')
-sys.path.append('/workspace/python/sign')
+from utils.if_tts import get_tts_audio_base64
 
-from network import trans_model
+sys.path.append('D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\')
+sys.path.append('/workspace/python/sign2/')
+
+from network import trans_model, img_with_hand
 from api import create_app
 from dbconn import get_db
 from utils import allow_cors, ResponseCode, verify_phone, upload_image, DatetimeEncoder, response_json, upload_file
@@ -22,6 +27,7 @@ from utils import allow_cors, ResponseCode, verify_phone, upload_image, Datetime
 app = create_app()
 app.after_request(allow_cors)
 app.after_request(response_json)
+r = redis.Redis(host='47.103.223.106', port=6379, db=0, password='PWDofRedis01', decode_responses=True)
 
 
 # region
@@ -571,27 +577,54 @@ def handle_video_stream(message):
 
 @socket.on("video")
 def handle_upload_video_stream(data):
-    # print(len(data))
-    # print(type(data))
-    """V3 - YUV420 """
-    # y_length = temp[0] * 255 * 255 + temp[1] * 255 + temp[2]
-    # width = temp[3] * 255 + temp[4]
-    # Y = temp[5:5 + y_length]
-    """"""
-    """
-    jpeg格式
-    需要舍弃前5个字节
-    """
-    # print(data[0], data[1], data[3], data[len(data) - 1], data[len(data) - 2])
     img = Image.open(io.BytesIO(data[5:]))
-    # trans_model.add_image_toQueue1(img)
-    asyncio.run(trans_model.add_image(img))
+    asyncio.run(img_hand_detect_result(img))
+
+
+async def img_hand_detect_result(img):
+    with_hand = img_with_hand(img)
+    socket.emit('hand', with_hand)
+    trans_model.add_image(img, with_hand)
 
 
 def send_translated_text(text):
-    print("_________trans____________res +++++++++++++ = : {}".format(text))
-    socket.emit("trans", text)
+    # print("_________trans____________res +++++++++++++ = : {}".format(text))
+    translated_text = str(r.get('translated_text'))
+    if translated_text is None:
+        r.set('translated_text', text)
+    else:
+        r.append('translated_text', text + '。')
+    print("send_translated_text = " + translated_text)
+
+
+def get_trans_result():
+    translated_text = r.get('translated_text')
+    print("translated_text = ", translated_text)
+    result = dict(code=200, data=translated_text, msg='message')
+    r.set('translated_text', '')
+    return result
+
+
+@app.route('/trans_text', methods=['GET'])
+def get_translated_text():
+    result = get_trans_result()
+    # print("result = ", result)
+    return json.dumps(result)
+
+
+@app.route('/tts', methods=['POST'])
+def get_text_to_speech():
+    """
+    文本转语音
+    """
+    body_data = request.get_json()
+    text = body_data.get('text')
+    voicer = body_data.get('voicer')
+
+    audio_bytes = get_tts_audio_base64(text, voicer)
+
+    return audio_bytes
 
 
 if __name__ == '__main__':
-    socket.run(app, host='0.0.0.0', debug=True, port=5002)
+    socket.run(app, host='0.0.0.0', debug=False, port=5003)

@@ -13,9 +13,12 @@ class YOLO:
         self.output_names = []
         self.labels = ['hand']
         try:
+            # self.net = cv2.dnn.readNetFromDarknet(
+            #     'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.cfg',
+            #     'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.weights')
             self.net = cv2.dnn.readNetFromDarknet(
-                'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.cfg',
-                'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.weights')
+                '/workspace/python/sign2/network/cross-hands-yolov4-tiny.cfg',
+                '/workspace/python/sign2/network/cross-hands-yolov4-tiny.weights')
         except:
             raise ValueError("Couldn't find the models!\nDid you forget to download them manually (and keep in the "
                              "correct directory, models/) or run the shell script?")
@@ -86,25 +89,3 @@ class YOLO:
 
 
 yolo_model = YOLO()
-
-# yolo_model = YOLO()
-#
-#
-# def img_with_hand(pil_image) -> bool:
-#     """
-#     检测图片中是否存在手部,返回True或False
-#     """
-#     cv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-#     width, height, inference_time, results = yolo_model.inference(cv_image)
-#     if len(results) == 0:
-#         return False
-#     else:
-#         return True
-#
-#
-# from PIL import Image
-#
-# if __name__ == '__main__':
-#     img = Image.open("../models/test_imgs/OIP-C.jpeg")
-#     res = img_with_hand(img)
-#     print(res)

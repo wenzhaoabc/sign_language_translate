@@ -3,9 +3,10 @@ import torch.nn as nn
 import torchvision.models as models
 import random
 
-import os,inspect,sys
+import os, inspect, sys
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-sys.path.insert(0,currentdir)
+sys.path.insert(0, currentdir)
 from ConvLSTM import ResCRNN
 
 """
@@ -13,6 +14,8 @@ Implementation of Sequence to Sequence Model
 Encoder: encode video spatial and temporal dynamics e.g. CNN+LSTM
 Decoder: decode the compressed info from encoder
 """
+
+
 class Encoder(nn.Module):
     def __init__(self, lstm_hidden_size=512, arch="resnet18"):
         super(Encoder, self).__init__()
@@ -67,8 +70,8 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.output_dim = output_dim
         self.embedding = nn.Embedding(output_dim, emb_dim)
-        self.rnn = nn.LSTM(emb_dim+enc_hid_dim, dec_hid_dim)
-        self.fc = nn.Linear(emb_dim+enc_hid_dim+dec_hid_dim, output_dim)
+        self.rnn = nn.LSTM(emb_dim + enc_hid_dim, dec_hid_dim)
+        self.fc = nn.Linear(emb_dim + enc_hid_dim + dec_hid_dim, output_dim)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, input, hidden, cell, context):
@@ -121,15 +124,15 @@ class Seq2Seq(nn.Module):
 
         # tensor to store decoder outputs
         outputs = torch.zeros(trg_len, batch_size, trg_vocab_size).to(self.device)
-        
+
         # encoder_outputs(batch, seq_len, hidden_size): all hidden states of input sequence
         encoder_outputs, (hidden, cell) = self.encoder(imgs)
-        
+
         # compute context vector
         context = encoder_outputs.mean(dim=1)
-        
+
         # first input to the decoder is the <sos> tokens
-        input = target[:,0]
+        input = target[:, 0]
 
         for t in range(1, trg_len):
             # decode
@@ -145,7 +148,7 @@ class Seq2Seq(nn.Module):
             top1 = output.argmax(1)
 
             # apply teacher forcing
-            input = target[:,t] if teacher_force else top1
+            input = target[:, t] if teacher_force else top1
 
         return outputs
 
@@ -166,8 +169,8 @@ if __name__ == '__main__':
     # print(decoder(input, hidden, cell, context))
 
     # test seq2seq
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     seq2seq = Seq2Seq(encoder=encoder, decoder=decoder, device=device)
     imgs = torch.randn(16, 3, 8, 128, 128)
     target = torch.LongTensor(16, 8).random_(0, 500)
-    print(seq2seq(imgs, target).argmax(dim=2).permute(1,0)) # batch first
+    print(seq2seq(imgs, target).argmax(dim=2).permute(1, 0))  # batch first
