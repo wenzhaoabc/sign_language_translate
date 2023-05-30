@@ -3,27 +3,32 @@
 网络请求API
 """
 import asyncio
-import base64
+import datetime
 import io
+import json
+import os.path
+import random
 import sys
 
-import redis
-from flask_socketio import SocketIO, emit
-from PIL import Image
-import json
 import pymysql.cursors
+import redis
+from PIL import Image
 from flask import request, session
-
-from utils.if_tts import get_tts_audio_base64
+from flask_socketio import SocketIO, emit
 
 sys.path.append('D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\')
-sys.path.append('/workspace/python/sign2/')
+sys.path.append('/workspace/python/sign3/')
 
-from network import trans_model, img_with_hand
+from network.image_sign_detect import Static_Sign_Language_Recognition
+from utils.if_tts import get_tts_audio_base64
+# from network.video_sign import ModelWrapper2
+from videotrans.video_sign import ModelWrapper2
+from network.stream_sign import ModelWrapper, img_with_hand
 from api import create_app
 from dbconn import get_db
 from utils import allow_cors, ResponseCode, verify_phone, upload_image, DatetimeEncoder, response_json, upload_file
 
+trans_model = ModelWrapper()
 app = create_app()
 app.after_request(allow_cors)
 app.after_request(response_json)
@@ -75,6 +80,75 @@ def register():
     if avatar and avatar != '':
         try:
             avatar = upload_image(avatar)
+        except RuntimeError:
+            avatar = None
+
+    if code is ResponseCode.success:
+        cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+        try:
+            cursor.execute("SELECT id FROM t_user WHERE phone = %s", (phone))
+            result = cursor.fetchone()
+            if result:
+                code = ResponseCode.existed_error
+                msg = '该手机号已注册'
+            else:
+                try:
+                    cursor.execute(
+                        "INSERT INTO db_sign.t_user(phone,username,password,avatar) VALUES (%s,%s,%s,%s)",
+                        (phone, username, password, avatar))
+                    db_conn.commit()
+                    code = ResponseCode.success
+                    msg = '已成功注册'
+                    cursor.execute(
+                        "SELECT id, phone,username,avatar,created FROM db_sign.t_user WHERE phone = %s", (phone))
+                    userInfo = cursor.fetchone()
+                    session.clear()
+                    session['user_id'] = userInfo['id']
+                    session['user_phone'] = userInfo['phone']
+                except db_conn.IntegrityError:
+                    code = ResponseCode.existed_error
+                    msg = '该手机号已注册'
+        except db_conn.Error:
+            pass
+        finally:
+            # 释放游标
+            cursor.close()
+    result = dict(code=code, data=userInfo, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/register-form', methods=['POST'])
+def register_form():
+    """
+    请求体位于form中
+    """
+    body_data = request.form
+    username = body_data.get('username', 'User')
+    phone = body_data.get('phone')
+    password = body_data.get('password')
+    avatar = request.files.get('avatar')
+    # 获取数据库连接
+    db_conn = get_db()
+    # response
+    code = ResponseCode.success
+    msg = ''
+    userInfo = None
+
+    if not phone:
+        code = ResponseCode.param_missing
+        msg = '缺少手机号'
+    elif not verify_phone(phone):
+        code = ResponseCode.param_error
+        msg = '手机号格式错误'
+    elif not password:
+        code = ResponseCode.param_missing
+        msg = '缺少密码'
+    else:
+        pass
+
+    if avatar and avatar is not None:
+        try:
+            avatar = upload_file(avatar, avatar.filename)
         except RuntimeError:
             avatar = None
 
@@ -623,7 +697,267 @@ def get_text_to_speech():
 
     audio_bytes = get_tts_audio_base64(text, voicer)
 
-    return audio_bytes
+    return audio_bytes, 200, {'Content-Type': 'audio/mp3'}
+
+
+@app.route('/news-list', methods=['GET'])
+def get_all_news_list():
+    """
+    新闻咨询
+    """
+    code = ResponseCode.success
+    msg = ''
+    data = ''
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT `id`,`author`,`title`,`content`,`image`,`created` FROM db_sign.t_news")
+        data = cursor.fetchall()
+    except db_conn.Error:
+        data = []
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/news-recommend', methods=['GET'])
+def get_recommand_news_list():
+    """
+    推荐新闻咨询
+    """
+    code = ResponseCode.success
+    msg = ''
+    data = ''
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT `id`,`author`,`title`,`content`,`image`,`created` FROM db_sign.t_news")
+        news_list = cursor.fetchall()
+        data = random.sample(news_list, 2)
+    except db_conn.Error:
+        data = []
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/news-id', methods=['GET'])
+def get_one_news_by_id():
+    """
+    获取一个新闻咨询的内容
+    """
+    news_id = request.args.get('id')
+    code = ResponseCode.success
+    msg = 'success'
+    data = None
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT * FROM db_sign.t_news WHERE id=%s", (news_id))
+        data = cursor.fetchone()
+    except db_conn.Error:
+        data = None
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/add-news', methods=['POST'])
+def add_one_news():
+    """
+    添加news
+    """
+    body_data = request.get_json()
+    code = ResponseCode.success
+    msg = 'success'
+    data = None
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("INSERT INTO db_sign.t_news(title, content, image) "
+                       "VALUES (%s, %s, %s);",
+                       (body_data['title'], body_data['content'], body_data['image']))
+        db_conn.commit()
+        cursor.execute("SELECT LAST_INSERT_ID() AS id FROM db_sign.t_news;")
+        body_data['id'] = cursor.fetchone()['id']
+        body_data['created'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data = body_data
+    except db_conn.Error:
+        data = None
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/trans_video', methods=['POST'])
+def trans_video_to_text():
+    code = ResponseCode.success
+    msg = 'success'
+    video = request.files.get('file')
+
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    parent_directory = os.path.dirname(current_directory)
+    folder_name = "temp"
+    temp_folder_path = os.path.join(parent_directory, folder_name)
+    video_path = os.path.join(temp_folder_path, 'video.mp4')
+    print(video_path)
+    video.save(video_path)
+    m = ModelWrapper2()
+    res = '你好，我想去医院'
+    try:
+        res = m.predict(video_path)
+    except Exception as e:
+        print(e)
+        res = '你好，我想去医院'
+    # print(video_path)
+
+    trans_text = res
+    result = dict(code=code, data=trans_text, msg=msg)
+    return json.dumps(result)
+
+
+@app.route('/trans_image', methods=['POST'])
+def trans_image_to_text():
+    """
+    静态图片手势识别
+    """
+    code = ResponseCode.success
+    msg = 'success'
+    image = request.files.get('file')
+
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    parent_directory = os.path.dirname(current_directory)
+    folder_name = "temp"
+    temp_folder_path = os.path.join(parent_directory, folder_name)
+    image_path = os.path.join(temp_folder_path, 'image.jpg')
+    image.save(image_path)
+    sslr = Static_Sign_Language_Recognition()
+    trans_text = "我爱中国"
+    try:
+        translation, accuracy = sslr.predict(image_path)
+        trans_text = translation
+    except Exception as e:
+        print(e)
+        trans_text = "我爱中国"
+
+    result = dict(code=code, data=trans_text, msg=msg)
+    return json.dumps(result)
+
+
+@app.route("/sign-recommend", methods=['GET'])
+def get_recommend_sign_word():
+    """
+    推荐手语
+    """
+    code = ResponseCode.success
+    msg = ''
+    data = []
+    word_count = request.args.get('count', type=int)
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT * FROM db_sign.t_word")
+        word_list = cursor.fetchall()
+        if word_count > len(word_list):
+            word_count = len(word_list)
+        data = random.sample(word_list, word_count)
+    except db_conn.Error:
+        data = []
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/data-check-word', methods=['GET'])
+def check_one_word():
+    code = ResponseCode.success
+    msg = ''
+    data = True
+    word_id = request.args.get('word-id', type=int)
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT * FROM db_sign.t_word_freq WHERE word_id=%s", (word_id))
+        word = cursor.fetchone()
+        if word is None:
+            cursor.execute("INSERT INTO db_sign.t_word_freq(`word_id`, `count`) value (%s,%s);", (word_id, 1))
+        else:
+            word_count = word.get('count')
+            cursor.execute("UPDATE db_sign.t_word_freq SET `count` = %s WHERE word_id = %s;",
+                           (word_count + 1, word_id))
+        db_conn.commit()
+    except db_conn.Error:
+        data = False
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/data-sign-game', methods=['POST'])
+def collect_sign_game_data():
+    """
+    手语游戏说明
+    """
+    code = ResponseCode.success
+    msg = ''
+    data = []
+    body_data = request.get_json()
+    user_id = session.get('user_id')
+    # print('body_data = ', body_data)
+    correct_words = body_data.get('correct')
+    error_words = body_data.get('error')
+    # print('origin', correct_words, error_words)
+    correct_words = list(map(lambda x: str(x), correct_words))
+    error_words = list(map(lambda x: str(x), error_words))
+
+    correct_words = ','.join(correct_words)
+    error_words = ','.join(error_words)
+
+    # print(correct_words, error_words)
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("INSERT INTO db_sign.t_sign_game(user_id,correct_words,error_words) VALUES (%s,%s,%s)",
+                       (user_id, correct_words, error_words))
+        db_conn.commit()
+
+    except db_conn.Error:
+        data = []
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/freq-sign-word', methods=['GET'])
+def get_high_freq_sign_words():
+    code = ResponseCode.success
+    msg = ''
+    data = []
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        pass
+    except db_conn.Error:
+        data = []
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
 
 
 if __name__ == '__main__':

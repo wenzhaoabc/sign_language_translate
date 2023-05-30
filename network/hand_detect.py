@@ -1,3 +1,4 @@
+import os
 import time
 
 import cv2
@@ -13,12 +14,15 @@ class YOLO:
         self.output_names = []
         self.labels = ['hand']
         try:
+            project_path = os.path.abspath('.')
+            static_path = os.path.join(project_path, 'static')
+            cfg_path = os.path.join(static_path, 'cross-hands-yolov4-tiny.cfg')
+            weight_path = os.path.join(static_path, 'cross-hands-yolov4-tiny.weights')
+            # print(cfg_path, weight_path)
+            self.net = cv2.dnn.readNetFromDarknet(cfg_path, weight_path)
             # self.net = cv2.dnn.readNetFromDarknet(
-            #     'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.cfg',
-            #     'D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\network\\cross-hands-yolov4-tiny.weights')
-            self.net = cv2.dnn.readNetFromDarknet(
-                '/workspace/python/sign2/network/cross-hands-yolov4-tiny.cfg',
-                '/workspace/python/sign2/network/cross-hands-yolov4-tiny.weights')
+            #     '/workspace/python/sign3/network/cross-hands-yolov4-tiny.cfg',
+            #     '/workspace/python/sign3/network/cross-hands-yolov4-tiny.weights')
         except:
             raise ValueError("Couldn't find the models!\nDid you forget to download them manually (and keep in the "
                              "correct directory, models/) or run the shell script?")
