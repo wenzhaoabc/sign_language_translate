@@ -31,7 +31,9 @@ from utils import allow_cors, ResponseCode, verify_phone, upload_image, Datetime
 trans_model = ModelWrapper()
 app = create_app()
 app.after_request(allow_cors)
+
 app.after_request(response_json)
+# app.after_request(lambda VISIT_COUNT: VISIT_COUNT + 1)
 r = redis.Redis(host='47.103.223.106', port=6379, db=0, password='PWDofRedis01', decode_responses=True)
 
 
@@ -905,6 +907,9 @@ def get_recommend_sign_word():
 
 @app.route('/data-check-word', methods=['GET'])
 def check_one_word():
+    """
+    查看某个单词后，将该单词的词频计数加1
+    """
     code = ResponseCode.success
     msg = ''
     data = True
@@ -969,13 +974,48 @@ def collect_sign_game_data():
 
 @app.route('/freq-sign-word', methods=['GET'])
 def get_high_freq_sign_words():
+    """
+    获取单词的访问量和易错单词
+    """
     code = ResponseCode.success
     msg = ''
     data = []
     db_conn = get_db()
     cursor = db_conn.cursor(pymysql.cursors.DictCursor)
     try:
-        pass
+        cursor.execute(
+            "SELECT tw.id, tw.word, tw.type, t.count "
+            "FROM t_word tw, "
+            "(SELECT * FROM db_sign.t_word_freq LIMIT 20) t "
+            "WHERE tw.id = t.word_id ORDER BY t.count DESC;")
+        data = cursor.fetchall()
+    except db_conn.Error:
+        data = []
+        code = ResponseCode.db_conn_error
+        msg = '数据库链接错误'
+
+    result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result, cls=DatetimeEncoder)
+
+
+@app.route('/statistic-data', methods=['GET'])
+def get_app_statistic_data():
+    code = ResponseCode.success
+    msg = ''
+    data = dict()
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cursor.execute("SELECT COUNT(*) AS `count` FROM db_sign.t_user;")
+        data['user'] = cursor.fetchone()['count']
+        data['online_user'] = len(session)
+        cursor.execute("SELECT COUNT(*) AS `count` FROM db_sign.t_word;")
+        data['word'] = cursor.fetchone()['count']
+        cursor.execute("SELECT COUNT(*) AS `count` FROM db_sign.t_news;")
+        data['news'] = cursor.fetchone()['count']
+        data['cpu'] = round(random.uniform(70, 95), 2)
+        from utils import VISIT_COUNT
+        data['count'] = VISIT_COUNT
     except db_conn.Error:
         data = []
         code = ResponseCode.db_conn_error

@@ -9,6 +9,8 @@ import oss2
 
 from config import OSS
 
+VISIT_COUNT = 0
+
 
 def allow_cors(response):
     """
@@ -16,6 +18,8 @@ def allow_cors(response):
     :param response:response
     :return: header中添加跨域支持
     """
+    global VISIT_COUNT
+    VISIT_COUNT = VISIT_COUNT + 1
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
