@@ -46,8 +46,9 @@ class ModelWrapper2:
         # root_path = os.path.dirname(__name__)
         project_path = os.path.abspath('.')
         static_path = os.path.join(project_path, 'static')
-        model_path = os.path.join(static_path, 'slr_seq2seq_epoch107.pth')
-        labels_path = os.path.join(static_path, 'dictionary.txt')
+        model_path = os.path.join(static_path, 'slr_seq2seq_epoch036_mixed.pth')
+        labels_path = os.path.join(static_path, 'dictionary_v2.txt')
+
         self.model_path = model_path  # './MyModel/seq2seq_models/slr_seq2seq_epoch001.pth'
         self.labels_path = labels_path  # './dictionary.txt'
         self.frames = frames  # 帧数，在读取视频时遇到

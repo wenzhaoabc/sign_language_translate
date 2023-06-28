@@ -40,8 +40,8 @@ class ModelWrapper:
         # SLR model
         project_path = os.path.abspath('.')
         static_path = os.path.join(project_path, 'static')
-        model_path = os.path.join(static_path, 'slr_seq2seq_epoch107.pth')
-        labels_path = os.path.join(static_path, 'dictionary.txt')
+        model_path = os.path.join(static_path, 'slr_seq2seq_epoch036_mixed.pth')
+        labels_path = os.path.join(static_path, 'dictionary_v2.txt')
 
         self.model_path = model_path  # './MyModel/seq2seq_models/slr_seq2seq_epoch001.pth'
         self.labels_path = labels_path  # './dictionary.txt'

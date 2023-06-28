@@ -17,7 +17,7 @@ from flask import request, session
 from flask_socketio import SocketIO, emit
 
 sys.path.append('D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\')
-sys.path.append('/workspace/python/sign3/')
+sys.path.append('/workspace/python/sign4/')
 
 from network.image_sign_detect import Static_Sign_Language_Recognition
 from utils.if_tts import get_tts_audio_base64
@@ -378,6 +378,31 @@ def flask_upload_files_by_form():
         msg = '存在未上传成功的文件'
     finally:
         result = dict(code=code, data=data, msg=msg)
+    return json.dumps(result)
+
+
+@app.route('/upload_file', methods=['POST'])
+def flask_upload_file_by_form():
+    """
+    上传单个文件，文件存在于form中
+    :return: data域中为文件名及访问URL
+    """
+    code = ResponseCode.success
+    msg = ''
+    data = []
+
+    try:
+        for item in request.files.keys():
+            file = request.files.get(item)
+            file_url = upload_file(file, file.filename)
+            file_dict = dict(file=file.filename, url=file_url, success=True)
+            data.append(file_dict)
+    except IOError:
+        data.pop()
+        code = ResponseCode.existed_error
+        msg = '存在未上传成功的文件'
+    finally:
+        result = dict(code=code, data=data[0], msg=msg)
     return json.dumps(result)
 
 
@@ -961,4 +986,4 @@ def get_high_freq_sign_words():
 
 
 if __name__ == '__main__':
-    socket.run(app, host='0.0.0.0', debug=False, port=5003)
+    socket.run(app, host='0.0.0.0', debug=True, port=5003)
