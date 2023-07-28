@@ -23,16 +23,16 @@ class Production(Config):
 
 # 数据库配置
 class DBConfig:
-    SERVER = '123.60.156.14'
+    SERVER = 'example.com'
     PORT = 3306
-    DATABASE = 'db_sign'
-    USER = 'sign_usr'
-    PASSWORD = 'usr_pwd_01'
+    DATABASE = 'example'
+    USER = 'example'
+    PASSWORD = 'example_pwd'
 
 
 # OSS云存储配置
 class OSS:
-    AccessKeyId = 'LTAI5t7FQpFy6b2dLAJBQuMf'
-    AccessKeySecret = '7bDGrO2ez4Wnnou7EHsQumnfTo1Hzh'
-    Endpoint = 'oss-cn-shanghai.aliyuncs.com'
-    Bucket = 'musicstyle'
+    AccessKeyId = 'xxxx'
+    AccessKeySecret = 'xxxx'
+    Endpoint = 'xxxx'
+    Bucket = 'xxxx'
