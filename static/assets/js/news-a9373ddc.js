@@ -1,0 +1,1 @@
+import{P as t,Q as s}from"./index-ad80de0e.js";const n=()=>t.get(s+"/news-list"),a=e=>t.post(s+"/add-news",e),o=()=>t.get(s+"/statistic-data"),g=()=>t.get(s+"/freq-sign-word");export{n as a,g as b,o as g,a as p};

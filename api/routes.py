@@ -13,11 +13,11 @@ import sys
 import pymysql.cursors
 import redis
 from PIL import Image
-from flask import request, session
+from flask import request, session, render_template
 from flask_socketio import SocketIO, emit
 
 sys.path.append('D:\\WorkSpace\\Python\\sign_language\\sign_language_translate\\')
-sys.path.append('/workspace/python/sign4/')
+sys.path.append('/workspace/python/sign/')
 
 from network.image_sign_detect import Static_Sign_Language_Recognition
 from utils.if_tts import get_tts_audio_base64
@@ -38,6 +38,11 @@ r = redis.Redis(host='47.103.223.106', port=6379, db=0, password='PWDofRedis01',
 
 
 # region
+
+
+@app.route('/')
+def get_admin_web_site():
+    return render_template("index.html")
 
 
 @app.route('/register', methods=['POST'])
@@ -256,13 +261,13 @@ def user_logout():
     return json.dumps(result)
 
 
-@app.route('/remove_account', methods=['DELETE'])
+@app.route('/remove_account', methods=['DELETE', 'GET'])
 def remove_account():
     """
     账户注销，级联删除数据库中用户的有关信息
     :return: data域为空
     """
-    user_id = session.get('user_id')
+    user_id = session.get('user_id') or request.args.get("user_id")
     db_conn = get_db()
     cursor = db_conn.cursor()
     code = ResponseCode.success
@@ -270,6 +275,8 @@ def remove_account():
 
     if user_id:
         try:
+            cursor.execute("DELETE FROM db_sign.t_sign_game WHERE user_id = %s", (int(user_id)))
+            cursor.execute("DELETE FROM db_sign.t_word_love WHERE user_id = %s", (int(user_id)))
             cursor.execute("DELETE FROM db_sign.t_user WHERE id = %s", (int(user_id)))
             db_conn.commit()
             code = ResponseCode.success
@@ -286,6 +293,36 @@ def remove_account():
     result = dict(code=code, msg=msg)
 
     return json.dumps(result)
+
+
+@app.route('/all_user', methods=['GET'])
+def get_all_users():
+    """
+    获取所有用户
+    :return: data域为空
+    """
+    # user_id = session.get('user_id')
+    db_conn = get_db()
+    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
+    code = ResponseCode.success
+    msg = ''
+    data = []
+
+    # if user_id:
+    try:
+        cursor.execute("SELECT * FROM db_sign.t_user;")
+        data = cursor.fetchall()
+        code = ResponseCode.success
+        msg = 'success'
+    except db_conn.Error:
+        # db_conn.rollback()
+        code = ResponseCode.db_conn_error
+        msg = '数据库错误'
+    finally:
+        cursor.close()
+    result = dict(code=code, data=data, msg=msg)
+
+    return json.dumps(result, cls=DatetimeEncoder)
 
 
 @app.route('/modify_user_info', methods=['PUT'])
@@ -460,6 +497,39 @@ def add_word_item():
 
     result = dict(code=code, data=word_item, msg=msg)
     return json.dumps(result)
+
+
+@app.route('/add_word_v2', methods=['POST'])
+def add_word_item_v2():
+    code = ResponseCode.success
+    msg = ''
+    word_item = dict()
+    word_item = request.get_json()
+
+    if code == ResponseCode.success:
+        db_conn = get_db()
+        cursor = db_conn.cursor()
+        try:
+            sql = "INSERT INTO db_sign.t_word(word, description, notes,tags, img, video, `type`) " \
+                  "VALUES (%s,%s,%s,%s,%s,%s,%s)"
+            values = (
+                word_item['word'], word_item['description'], word_item['notes'], word_item['tags'], word_item['img'],
+                word_item['video'], word_item['type'])
+            cursor.execute(sql, values)
+            db_conn.commit()
+            msg = '插入成功'
+            cursor.execute("SELECT LAST_INSERT_ID() AS id FROM db_sign.t_word")
+            word_item['id'] = cursor.fetchone()[0]
+        except db_conn.Error:
+            db_conn.rollback()
+            code = ResponseCode.db_conn_error
+            msg = '数据库连接错误'
+        finally:
+            cursor.close()
+
+    result = dict(code=code, data=word_item, msg=msg)
+    return json.dumps(result)
+
 
 
 @app.route('/word_list', methods=['GET'])

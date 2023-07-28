@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 from datetime import datetime, date
+from flask import request
 
 import oss2
 
@@ -30,7 +31,11 @@ def response_json(response):
     :param response: response
     :return: header中修改了Content-Type
     """
-    response.headers['Content-Type'] = 'application/json'
+    if request.path.find("/assets") >= 0:
+        return response
+    if request.path != "/":
+        response.headers['Content-Type'] = 'application/json'
+    # response.headers['Content-Type'] = 'application/json'
     return response
 
 
